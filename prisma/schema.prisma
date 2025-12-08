@@ -1,0 +1,263 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "mysql"
+    url      = env("DATABASE_URL")
+}
+
+// Enums
+enum UserRole {
+    BUYER
+    SELLER
+    ADMIN
+}
+
+enum ListingStatus {
+    UPCOMING
+    LIVE
+    ENDED
+    SOLD
+    UNSOLD
+}
+
+enum BidStatus {
+    ACTIVE
+    OUTBID
+    WINNING
+    WON
+    LOST
+}
+
+enum PaymentStatus {
+    PENDING
+    COMPLETED
+    FAILED
+    REFUNDED
+}
+
+enum NotificationType {
+    BID_PLACED
+    BID_OUTBID
+    AUCTION_WON
+    AUCTION_LOST
+    AUCTION_STARTING
+    AUCTION_ENDING
+    PAYMENT_RECEIVED
+    PAYMENT_SENT
+    NEW_MESSAGE
+}
+
+// User Model
+model User {
+    id                          String    @id @default(cuid())
+    email                       String    @unique
+    username                    String    @unique
+    password                    String
+    fullName                    String
+    phone                       String?
+    address                     String?   @db.Text
+    avatar                      String?
+    role                        UserRole  @default(BUYER)
+    isVendor                    Boolean   @default(false)
+    stripeAccountId             String?   @unique // Old field (keeping for compatibility)
+    stripeConnectedAccountId    String?   @unique // Stripe Connect Account ID
+    stripeOnboardingComplete    Boolean   @default(false) // Has completed Stripe onboarding
+    stripeDetailsSubmitted      Boolean   @default(false) // Has submitted account details
+    stripeChargesEnabled        Boolean   @default(false) // Can receive payments
+    stripePayoutsEnabled        Boolean   @default(false) // Can receive payouts
+    emailVerified               DateTime?
+    ratingAsBuyer               Float     @default(0)
+    ratingAsSeller              Float     @default(0)
+    totalRatings                Int       @default(0)
+    createdAt                   DateTime  @default(now())
+    updatedAt                   DateTime  @updatedAt
+
+    // Relations
+    listings           Listing[]      @relation("SellerListings")
+    bids               Bid[]
+    paymentsAsBuyer    Payment[]      @relation("BuyerPayments")
+    paymentsAsSeller   Payment[]      @relation("SellerPayments")
+    notifications      Notification[]
+    ratingsGiven       Rating[]       @relation("RatingsGiven")
+    ratingsReceived    Rating[]       @relation("RatingsReceived")
+    accounts           Account[]
+    sessions           Session[]
+
+    @@index([email])
+    @@index([username])
+    @@index([isVendor])
+}
+
+// NextAuth Models
+model Account {
+    id                String  @id @default(cuid())
+    userId            String
+    type              String
+    provider          String
+    providerAccountId String
+    refresh_token     String? @db.Text
+    access_token      String? @db.Text
+    expires_at        Int?
+    token_type        String?
+    scope             String?
+    id_token          String? @db.Text
+    session_state     String?
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([provider, providerAccountId])
+    @@index([userId])
+}
+
+model Session {
+    id           String   @id @default(cuid())
+    sessionToken String   @unique
+    userId       String
+    expires      DateTime
+
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId])
+}
+
+model VerificationToken {
+    identifier String
+    token      String   @unique
+    expires    DateTime
+
+    @@unique([identifier, token])
+}
+
+// Listing (Auction Item) Model
+model Listing {
+    id                           String        @id @default(cuid())
+    title                        String
+    description                  String        @db.Text
+    images                       Json
+    startingPrice                Float
+    reservePrice                 Float?
+    currentBid                   Float         @default(0)
+    startTime                    DateTime
+    endTime                      DateTime
+    status                       ListingStatus @default(UPCOMING)
+    category                     String
+    type                         String        @default("AUCTION") // AUCTION or BUY_NOW
+    sellerId                     String
+    winnerId                     String?
+    viewCount                    Int           @default(0)
+    bidCount                     Int           @default(0)
+    endingSoonNotificationSent   Boolean       @default(false)
+    paymentRequired              Boolean       @default(false) // True when auction ends with winner
+    paymentCompleted             Boolean       @default(false) // True when winner pays
+    paymentDueDate               DateTime?     // Payment deadline
+    createdAt                    DateTime      @default(now())
+    updatedAt                    DateTime      @updatedAt
+
+    // Relations
+    seller   User      @relation("SellerListings", fields: [sellerId], references: [id], onDelete: Cascade)
+    bids     Bid[]
+    payments Payment[]
+
+    @@index([sellerId])
+    @@index([status])
+    @@index([category])
+    @@index([endTime])
+    @@index([winnerId])
+    @@index([paymentRequired])
+    @@index([paymentCompleted])
+    @@index([currentBid])
+    @@index([startTime])
+    @@index([bidCount])
+    @@index([createdAt])
+    @@index([status, endTime])
+    @@index([category, status])
+}
+
+// Bid Model
+model Bid {
+    id        String    @id @default(cuid())
+    amount    Float
+    bidderId  String
+    listingId String
+    status    BidStatus @default(ACTIVE)
+    createdAt DateTime  @default(now())
+
+    // Relations
+    bidder  User    @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+    listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+    @@index([bidderId])
+    @@index([listingId])
+    @@index([status])
+    @@index([createdAt])
+}
+
+// Payment Model
+model Payment {
+    id                    String        @id @default(cuid())
+    stripePaymentId       String?       @unique // Stripe Payment Intent ID
+    stripeCheckoutSession String?       @unique // Stripe Checkout Session ID
+    amount                Float
+    buyerId               String
+    sellerId              String
+    listingId             String
+    status                PaymentStatus @default(PENDING)
+    platformFee           Float         @default(0)
+    sellerPayout          Float
+    currency              String        @default("usd")
+    paymentMethod         String?       // card, bank_transfer, etc.
+    receiptUrl            String?       // Stripe receipt URL
+    refundReason          String?
+    createdAt             DateTime      @default(now())
+    updatedAt             DateTime      @updatedAt
+
+    // Relations
+    buyer   User    @relation("BuyerPayments", fields: [buyerId], references: [id])
+    seller  User    @relation("SellerPayments", fields: [sellerId], references: [id])
+    listing Listing @relation(fields: [listingId], references: [id])
+
+    @@index([buyerId])
+    @@index([sellerId])
+    @@index([listingId])
+    @@index([status])
+    @@index([stripePaymentId])
+}
+
+// Notification Model
+model Notification {
+    id        String           @id @default(cuid())
+    userId    String
+    type      NotificationType
+    message   String           @db.Text
+    link      String?
+    isRead    Boolean          @default(false)
+    createdAt DateTime         @default(now())
+
+    // Relations
+    user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@index([userId])
+    @@index([isRead])
+    @@index([createdAt])
+}
+
+// Rating Model
+model Rating {
+    id           String   @id @default(cuid())
+    rating       Int
+    review       String?  @db.Text
+    fromUserId   String
+    toUserId     String
+    listingId    String?
+    createdAt    DateTime @default(now())
+
+    // Relations
+    fromUser User @relation("RatingsGiven", fields: [fromUserId], references: [id], onDelete: Cascade)
+    toUser   User @relation("RatingsReceived", fields: [toUserId], references: [id], onDelete: Cascade)
+
+    @@unique([fromUserId, toUserId, listingId])
+    @@index([toUserId])
+    @@index([rating])
+}

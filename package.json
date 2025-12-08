@@ -1,0 +1,50 @@
+{
+  "name": "gocart",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node server.js",
+    "dev:next": "next dev --turbopack",
+    "build": "next build",
+    "start": "NODE_ENV=production node server.js",
+    "start:next": "next start",
+    "lint": "next lint",
+    "seed": "node prisma/seed.js"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
+  },
+  "dependencies": {
+    "@auth/prisma-adapter": "^2.11.1",
+    "@react-email/components": "^1.0.1",
+    "@react-email/render": "^2.0.0",
+    "@reduxjs/toolkit": "^2.8.2",
+    "@stripe/stripe-js": "^8.5.3",
+    "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.8.0",
+    "date-fns": "^4.1.0",
+    "lucide-react": "^0.525.0",
+    "next": "15.3.5",
+    "next-auth": "^5.0.0-beta.30",
+    "next-cloudinary": "^6.17.5",
+    "node-cron": "^4.2.1",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-hook-form": "^7.67.0",
+    "react-hot-toast": "^2.5.2",
+    "react-redux": "^9.2.0",
+    "recharts": "^3.1.2",
+    "resend": "^6.5.2",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "stripe": "^20.0.0",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@prisma/client": "^6.19.0",
+    "@tailwindcss/postcss": "^4",
+    "@types/bcryptjs": "^2.4.6",
+    "prisma": "^6.19.0",
+    "tailwindcss": "^4"
+  }
+}
