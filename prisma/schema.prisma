@@ -84,6 +84,7 @@ model User {
     ratingsReceived    Rating[]       @relation("RatingsReceived")
     accounts           Account[]
     sessions           Session[]
+    proxyBids          ProxyBid[]     @relation("UserProxyBids") // FEATURE 2: User's proxy bids
 
     @@index([email])
     @@index([username])
@@ -148,6 +149,7 @@ model Listing {
     winnerId                     String?
     viewCount                    Int           @default(0)
     bidCount                     Int           @default(0)
+    version                      Int           @default(0) // FEATURE 1: Optimistic locking version
     endingSoonNotificationSent   Boolean       @default(false)
     paymentRequired              Boolean       @default(false) // True when auction ends with winner
     paymentCompleted             Boolean       @default(false) // True when winner pays
@@ -159,6 +161,7 @@ model Listing {
     seller   User      @relation("SellerListings", fields: [sellerId], references: [id], onDelete: Cascade)
     bids     Bid[]
     payments Payment[]
+    proxyBids ProxyBid[] // FEATURE 2: Auto-bid proxy bids
 
     @@index([sellerId])
     @@index([status])
@@ -173,6 +176,7 @@ model Listing {
     @@index([createdAt])
     @@index([status, endTime])
     @@index([category, status])
+    @@index([version]) // FEATURE 1: Index for version checks
 }
 
 // Bid Model
@@ -182,6 +186,7 @@ model Bid {
     bidderId  String
     listingId String
     status    BidStatus @default(ACTIVE)
+    isProxy   Boolean   @default(false) // FEATURE 2: Indicates if bid was placed by proxy system
     createdAt DateTime  @default(now())
 
     // Relations
@@ -192,6 +197,7 @@ model Bid {
     @@index([listingId])
     @@index([status])
     @@index([createdAt])
+    @@index([isProxy]) // FEATURE 2: Index for proxy bid queries
 }
 
 // Payment Model
@@ -263,4 +269,45 @@ model Rating {
     @@unique([fromUserId, toUserId, listingId])
     @@index([toUserId])
     @@index([rating])
+}
+
+// ===================================
+// FEATURE 2: Auto-Bid Proxy Model
+// ===================================
+// Stores user's automatic bidding preferences
+model ProxyBid {
+    id              String   @id @default(cuid())
+    userId          String
+    listingId       String
+    maxAmount       Float    // Maximum amount user is willing to bid
+    currentAmount   Float    @default(0) // Current proxy bid amount placed
+    incrementAmount Float    @default(5.00) // Amount to increment each bid
+    isActive        Boolean  @default(true) // Whether proxy bid is still active
+    createdAt       DateTime @default(now())
+    updatedAt       DateTime @updatedAt
+
+    // Relations
+    user    User    @relation("UserProxyBids", fields: [userId], references: [id], onDelete: Cascade)
+    listing Listing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+
+    @@unique([userId, listingId]) // One proxy bid per user per listing
+    @@index([listingId, isActive]) // Query active proxy bids for a listing
+    @@index([userId, isActive]) // Query user's active proxy bids
+}
+
+// ===================================
+// FEATURE 3: System Health Check Model
+// ===================================
+// Stores health check history for monitoring
+model HealthCheck {
+    id           String   @id @default(cuid())
+    service      String   // 'database', 'stripe', 'cloudinary', 'email', 'socket'
+    status       String   // 'healthy', 'degraded', 'down'
+    responseTime Int      // Response time in milliseconds
+    errorMessage String?  @db.Text
+    metadata     Json?    // Additional diagnostic information
+    checkedAt    DateTime @default(now())
+
+    @@index([service, checkedAt])
+    @@index([status, checkedAt])
 }
