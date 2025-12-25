@@ -88,13 +88,30 @@ export default function CreateListingPage() {
     return `${hours}:${minutes}`
   }
 
-  // Helper function to convert local datetime to ISO format for storage
+  // Helper function to convert local datetime to datetime-local format for storage
+  // This keeps the time in LOCAL format (YYYY-MM-DDTHH:MM) without converting to UTC
   const localDateTimeToISO = (dateStr, timeStr) => {
-    const [day, month, year] = dateStr.split('-')
-    const [hours, minutes] = timeStr.split(':')
-    // Create date using LOCAL timezone (not UTC)
-    const date = new Date(year, month - 1, day, hours, minutes)
-    return date.toISOString().slice(0, 16)
+    if (!dateStr || !timeStr) return ''
+    const parts = dateStr.split('-')
+    if (parts.length !== 3) return ''
+    const [day, month, year] = parts
+    const timeParts = timeStr.split(':')
+    if (timeParts.length < 2) return ''
+    const [hours, minutes] = timeParts
+    // Return in datetime-local format (YYYY-MM-DDTHH:MM) - NO UTC conversion
+    // This format is parsed by Date constructor as LOCAL time
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
+  }
+
+  // Helper function to format a Date object to datetime-local format (YYYY-MM-DDTHH:MM)
+  // Uses LOCAL time, not UTC
+  const formatDateToLocalISO = (date) => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${year}-${month}-${day}T${hours}:${minutes}`
   }
 
   // Helper function to calculate duration between two dates
@@ -176,14 +193,14 @@ export default function CreateListingPage() {
       
       if (!startTimeValue) {
         const now = new Date()
-        setValue('startTime', now.toISOString().slice(0, 16))
+        setValue('startTime', formatDateToLocalISO(now))
       }
       
       if (!endTimeValue && durationOption !== 'custom') {
         const startDate = startTimeValue ? new Date(startTimeValue) : new Date()
         const days = parseInt(durationOption || '3')
         const endDate = new Date(startDate.getTime() + days * 24 * 60 * 60 * 1000)
-        setValue('endTime', endDate.toISOString().slice(0, 16))
+        setValue('endTime', formatDateToLocalISO(endDate))
       }
       
       fieldsToValidate = ['startTime', 'endTime']

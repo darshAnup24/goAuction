@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
+import { sendVerificationEmail } from '@/lib/email'
 
 export async function POST(req) {
   try {
@@ -66,7 +68,7 @@ export async function POST(req) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // Create user
+    // Create user (without email verification for now)
     const user = await prisma.user.create({
       data: {
         email,
@@ -77,6 +79,7 @@ export async function POST(req) {
         address: address || null,
         role: 'BUYER',
         isVendor: false,
+        emailVerified: null, // Not verified yet
       },
       select: {
         id: true,
@@ -89,10 +92,42 @@ export async function POST(req) {
       },
     })
 
+    // Create verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex')
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours from now
+
+    await prisma.verificationToken.create({
+      data: {
+        identifier: email,
+        token: verificationToken,
+        expires,
+      },
+    })
+
+    // Send verification email
+    const verificationUrl = `${process.env.NEXTAUTH_URL}/verify-email?token=${verificationToken}&email=${encodeURIComponent(email)}`
+    
+    let emailSent = false;
+    try {
+      const result = await sendVerificationEmail(email, fullName, verificationUrl)
+      emailSent = result?.success === true;
+      console.log('✅ Verification email sent:', result);
+    } catch (emailError) {
+      console.error('❌ Failed to send verification email:', emailError.message)
+      // Log more details for debugging
+      if (emailError.message?.includes('403') || emailError.message?.includes('only send')) {
+        console.error('⚠️ This is likely a Resend domain verification issue. Using onboarding@resend.dev only allows sending to the account owner email.');
+      }
+    }
+
     return NextResponse.json(
       {
-        message: 'User registered successfully',
+        message: emailSent 
+          ? 'User registered successfully. Please check your email to verify your account.'
+          : 'User registered successfully. Email verification could not be sent - please try resending from the login page.',
         user,
+        requiresVerification: true,
+        emailSent,
       },
       { status: 201 }
     )

@@ -89,7 +89,9 @@ export async function POST(request) {
       );
     }
 
+    const SHIPPING_CHARGE = 1.00; // $1 shipping fee
     const amount = listing.currentBid;
+    const totalAmount = amount + SHIPPING_CHARGE;
     const platformFee = calculatePlatformFee(amount);
     const sellerPayout = calculateSellerPayout(amount);
 
@@ -106,6 +108,8 @@ export async function POST(request) {
       payment = await prisma.payment.create({
         data: {
           amount: amount,
+          shippingCharge: SHIPPING_CHARGE,
+          totalAmount: totalAmount,
           buyerId: session.user.id,
           sellerId: listing.sellerId,
           listingId: listing.id,
@@ -113,6 +117,16 @@ export async function POST(request) {
           platformFee: platformFee,
           sellerPayout: sellerPayout,
           currency: "usd",
+          isTestPayment: process.env.STRIPE_SECRET_KEY?.startsWith('sk_test_') || false,
+        },
+      });
+    } else {
+      // Update existing payment with shipping
+      payment = await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          shippingCharge: SHIPPING_CHARGE,
+          totalAmount: totalAmount,
         },
       });
     }
@@ -127,7 +141,7 @@ export async function POST(request) {
       },
     });
 
-    // Prepare checkout session configuration
+    // Prepare checkout session configuration with item + shipping
     const sessionConfig = {
       mode: "payment",
       payment_method_types: ["card"],
@@ -144,12 +158,26 @@ export async function POST(request) {
           },
           quantity: 1,
         },
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: "Shipping & Handling",
+              description: "Standard shipping fee",
+            },
+            unit_amount: formatAmountForStripe(SHIPPING_CHARGE),
+          },
+          quantity: 1,
+        },
       ],
       metadata: {
         listingId: listing.id,
         paymentId: payment.id,
         buyerId: session.user.id,
         sellerId: listing.sellerId,
+        itemAmount: amount.toString(),
+        shippingCharge: SHIPPING_CHARGE.toString(),
+        totalAmount: totalAmount.toString(),
         platformFee: platformFee.toString(),
         sellerPayout: sellerPayout.toString(),
         connectAccountId: seller?.stripeConnectedAccountId || "none",
@@ -163,17 +191,18 @@ export async function POST(request) {
     // If seller has Stripe Connect account, use destination charges
     if (seller?.stripeConnectedAccountId && seller.stripeChargesEnabled) {
       sessionConfig.payment_intent_data = {
-        application_fee_amount: formatAmountForStripe(platformFee),
+        application_fee_amount: formatAmountForStripe(platformFee + SHIPPING_CHARGE), // Platform keeps shipping + fee
         transfer_data: {
           destination: seller.stripeConnectedAccountId,
         },
       };
 
       console.log(`💰 Using Stripe Connect for seller: ${seller.fullName} (${seller.stripeConnectedAccountId})`);
+      console.log(`   Item: $${amount} | Shipping: $${SHIPPING_CHARGE} | Total: $${totalAmount}`);
       console.log(`   Platform fee: $${platformFee} | Seller payout: $${sellerPayout}`);
     } else {
       console.log(`⚠️  Seller doesn't have Stripe Connect - using standard payment`);
-      console.log(`   Manual payout required after payment`);
+      console.log(`   Item: $${amount} | Shipping: $${SHIPPING_CHARGE} | Total: $${totalAmount}`);
     }
 
     // Create Stripe Checkout Session

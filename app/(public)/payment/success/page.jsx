@@ -3,6 +3,8 @@
  * 
  * Displays success message after Stripe payment completion
  * /payment/success?session_id=cs_xxx
+ * 
+ * Also updates payment status for local dev (without webhooks)
  */
 
 import { Suspense } from "react";
@@ -21,11 +23,17 @@ async function getPaymentDetails(sessionId) {
       return null;
     }
 
-    // Get payment and listing details
-    const payment = await prisma.payment.findFirst({
-      where: {
-        stripeCheckoutSession: sessionId,
-      },
+    // Get paymentId from session metadata
+    const { paymentId, listingId, buyerId, sellerId } = session.metadata || {};
+
+    if (!paymentId) {
+      console.error("No paymentId in session metadata");
+      return null;
+    }
+
+    // Check if payment is already completed
+    let payment = await prisma.payment.findUnique({
+      where: { id: paymentId },
       include: {
         listing: {
           select: {
@@ -42,6 +50,72 @@ async function getPaymentDetails(sessionId) {
         },
       },
     });
+
+    if (!payment) {
+      console.error("Payment not found:", paymentId);
+      return null;
+    }
+
+    // If payment is still pending and Stripe says it's complete, update it
+    // This handles the case where webhooks don't work (local dev)
+    if (payment.status === "PENDING" && session.payment_status === "paid") {
+      console.log("Updating payment status from success page (webhook fallback)");
+      
+      payment = await prisma.payment.update({
+        where: { id: paymentId },
+        data: {
+          status: "COMPLETED",
+          stripePaymentId: session.payment_intent,
+          stripeCheckoutSession: sessionId,
+          paymentMethod: session.payment_method_types?.[0] || "card",
+        },
+        include: {
+          listing: {
+            select: {
+              id: true,
+              title: true,
+              images: true,
+            },
+          },
+          seller: {
+            select: {
+              fullName: true,
+              email: true,
+            },
+          },
+        },
+      });
+
+      // Update listing as payment completed
+      await prisma.listing.update({
+        where: { id: listingId },
+        data: {
+          paymentCompleted: true,
+        },
+      });
+
+      // Create notifications
+      await Promise.all([
+        prisma.notification.create({
+          data: {
+            userId: sellerId,
+            type: "PAYMENT_RECEIVED",
+            message: `Payment of $${payment.totalAmount?.toFixed(2) || payment.amount.toFixed(2)} received for "${payment.listing.title}"`,
+            link: `/dashboard/sales`,
+          },
+        }),
+        prisma.notification.create({
+          data: {
+            userId: buyerId,
+            type: "PAYMENT_SENT",
+            message: `Your payment for "${payment.listing.title}" was successful`,
+            link: `/orders`,
+          },
+        }),
+      ]);
+
+      console.log("Payment completed successfully:", paymentId);
+    }
 
     return {
       session,

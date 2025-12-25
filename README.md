@@ -1,8 +1,7 @@
 <div align="center">
-  <h1><img src="https://gocartshop.in/favicon.ico" width="20" height="20" alt="GoCart Favicon">
-   GoCart</h1>
+  <h1>🛒 GoCart</h1>
   <p>
-    An open-source multi-vendor e-commerce platform built with Next.js and Tailwind CSS.
+    An open-source multi-vendor auction e-commerce platform with real-time bidding, built with Next.js 15, Prisma, and Socket.io.
   </p>
   <p>
     <a href="https://github.com/GreatStackDev/goCart/blob/main/LICENSE.md"><img src="https://img.shields.io/github/license/GreatStackDev/goCart?style=for-the-badge" alt="License"></a>
@@ -16,70 +15,137 @@
 ## 📖 Table of Contents
 
 - [✨ Features](#-features)
-- [🛠️ Tech Stack](#-tech-stack)
+- [🛠️ Tech Stack](#️-tech-stack)
 - [🚀 Getting Started](#-getting-started)
+- [⚙️ Environment Variables](#️-environment-variables)
 - [🤝 Contributing](#-contributing)
 - [📜 License](#-license)
 
 ---
 
-## Features
+## ✨ Features
 
-- **Multi-Vendor Architecture:** Allows multiple vendors to register, manage their own products, and sell on a single platform.
-- **Customer-Facing Storefront:** A beautiful and responsive user interface for customers to browse and purchase products.
-- **Vendor Dashboards:** Dedicated dashboards for vendors to manage products, view sales analytics, and track orders.
-- **Admin Panel:** A comprehensive dashboard for platform administrators to oversee vendors, products, and commissions.
+- **Real-Time Auction Bidding:** Live bidding system powered by Socket.io with instant updates across all connected clients.
+- **Multi-Vendor Architecture:** Vendors can register, manage their auction listings, and track sales on a single platform.
+- **Customer-Facing Storefront:** Beautiful, responsive UI for browsing auctions, placing bids, and purchasing products.
+- **Vendor Dashboards:** Dedicated dashboards for vendors to manage listings, view sales analytics, and track orders.
+- **Stripe Payments:** Integrated Stripe Connect for secure vendor payouts and customer payments.
+- **Email Notifications:** Transactional emails for auction wins, outbids, payments, and more using React Email + Resend.
+- **Real-Time Notifications:** In-app notification system with bell icon and live updates.
+- **Image Uploads:** Cloudinary integration for product image management.
+- **Countdown Timers:** Live auction countdown timers with automatic status updates.
+- **Rating System:** Customers can rate vendors and products after purchase.
 
-## 🛠️ Tech Stack <a name="-tech-stack"></a>
+## 🛠️ Tech Stack
 
-- **Framework:** Next.js
-- **Styling:** Tailwind CSS
-- **UI Components:** Lucide React for icons
-- **State Management:** Redux Toolkit
+| Category | Technology |
+|----------|------------|
+| **Framework** | Next.js 15 (App Router) |
+| **Runtime** | React 19 |
+| **Database** | Prisma ORM |
+| **Authentication** | NextAuth.js v5 |
+| **Real-Time** | Socket.io |
+| **Styling** | Tailwind CSS 4 |
+| **State Management** | Redux Toolkit |
+| **Payments** | Stripe + Stripe Connect |
+| **Emails** | React Email + Resend |
+| **Image Storage** | Cloudinary |
+| **Icons** | Lucide React |
+| **Forms** | React Hook Form + Zod |
+| **Charts** | Recharts |
+| **Scheduling** | node-cron |
 
-## 🚀 Getting Started <a name="-getting-started"></a>
+## 🚀 Getting Started
 
-First, install the dependencies. We recommend using `npm` for this project.
+### Prerequisites
 
-```bash
-npm install
+- Node.js 18+ 
+- npm or yarn
+- PostgreSQL database (or any Prisma-supported database)
+
+### Installation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/GreatStackDev/goCart.git
+   cd goCart
+   ```
+
+2. **Install dependencies:**
+   ```bash
+   npm install
+   ```
+
+3. **Set up environment variables:**
+   ```bash
+   cp .env.example .env
+   ```
+   Fill in your environment variables (see [Environment Variables](#️-environment-variables) section).
+
+4. **Set up the database:**
+   ```bash
+   npx prisma generate
+   npx prisma db push
+   ```
+
+5. **Seed the database (optional):**
+   ```bash
+   npm run seed
+   ```
+
+6. **Run the development server:**
+   ```bash
+   npm run dev
+   ```
+
+7. Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## ⚙️ Environment Variables
+
+Create a `.env` file in the root directory with the following variables:
+
+```env
+# Database
+DATABASE_URL="your-database-url"
+
+# NextAuth
+AUTH_SECRET="your-auth-secret"
+NEXTAUTH_URL="http://localhost:3000"
+
+# Stripe
+STRIPE_SECRET_KEY="sk_test_..."
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY="pk_test_..."
+STRIPE_WEBHOOK_SECRET="whsec_..."
+
+# Cloudinary
+CLOUDINARY_CLOUD_NAME="your-cloud-name"
+CLOUDINARY_API_KEY="your-api-key"
+CLOUDINARY_API_SECRET="your-api-secret"
+
+# Resend (Email)
+RESEND_API_KEY="re_..."
+
+# App URL
+NEXT_PUBLIC_APP_URL="http://localhost:3000"
 ```
-
-Then, run the development server:
-
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/(public)/page.js`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Outfit](https://vercel.com/font), a new font family for Vercel.
 
 ---
 
-## 🤝 Contributing <a name="-contributing"></a>
+## 🤝 Contributing
 
 We welcome contributions! Please see our [CONTRIBUTING.md](./CONTRIBUTING.md) for more details on how to get started.
 
 ---
 
-## 📜 License <a name="-license"></a>
+## 📜 License
 
 This project is licensed under the MIT License. See the [LICENSE.md](./LICENSE.md) file for details.
 
-## Learn More
+---
 
-To learn more about Next.js, take a look at the following resources:
+## 📚 Learn More
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- [Next.js Documentation](https://nextjs.org/docs) - Learn about Next.js features and API.
+- [Prisma Documentation](https://www.prisma.io/docs) - Learn about Prisma ORM.
+- [Socket.io Documentation](https://socket.io/docs) - Learn about real-time communication.
+- [Stripe Documentation](https://stripe.com/docs) - Learn about payment integration.

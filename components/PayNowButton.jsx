@@ -2,7 +2,7 @@
  * Pay Now Button Component
  * 
  * Displays a payment button for auction winners to complete payment
- * via Stripe Checkout
+ * Uses Stripe Checkout (test mode with test keys = no real charges)
  */
 
 "use client";
@@ -11,17 +11,21 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CreditCard, Loader2 } from "lucide-react";
 
+const SHIPPING_CHARGE = 1.00;
+
 export default function PayNowButton({ listingId, amount, listingTitle }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const router = useRouter();
+
+  const totalAmount = amount + SHIPPING_CHARGE;
 
   const handlePayment = async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      // Create checkout session
+      // Create Stripe checkout session
       const response = await fetch("/api/payments/create-checkout", {
         method: "POST",
         headers: {
@@ -48,6 +52,22 @@ export default function PayNowButton({ listingId, amount, listingTitle }) {
 
   return (
     <div className="space-y-3">
+      {/* Price breakdown */}
+      <div className="bg-gray-50 rounded-lg p-3 text-sm space-y-1">
+        <div className="flex justify-between text-gray-600">
+          <span>Item Price</span>
+          <span>${amount.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between text-gray-600">
+          <span>Shipping</span>
+          <span>${SHIPPING_CHARGE.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between font-semibold text-gray-900 border-t pt-1">
+          <span>Total</span>
+          <span>${totalAmount.toFixed(2)}</span>
+        </div>
+      </div>
+
       <button
         onClick={handlePayment}
         disabled={isLoading}
@@ -61,7 +81,7 @@ export default function PayNowButton({ listingId, amount, listingTitle }) {
         ) : (
           <>
             <CreditCard className="w-5 h-5" />
-            <span>Pay Now - ${amount.toFixed(2)}</span>
+            <span>Pay Now - ${totalAmount.toFixed(2)}</span>
           </>
         )}
       </button>
@@ -74,7 +94,7 @@ export default function PayNowButton({ listingId, amount, listingTitle }) {
       )}
 
       <p className="text-xs text-gray-500 text-center">
-        Secure payment powered by Stripe
+        🔒 Secure payment powered by Stripe (Test Mode)
       </p>
     </div>
   );

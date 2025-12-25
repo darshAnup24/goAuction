@@ -200,6 +200,8 @@ model Payment {
     stripePaymentId       String?       @unique // Stripe Payment Intent ID
     stripeCheckoutSession String?       @unique // Stripe Checkout Session ID
     amount                Float
+    shippingCharge        Float         @default(1.00) // Shipping charge (default $1)
+    totalAmount           Float         // amount + shippingCharge
     buyerId               String
     sellerId              String
     listingId             String
@@ -207,7 +209,8 @@ model Payment {
     platformFee           Float         @default(0)
     sellerPayout          Float
     currency              String        @default("usd")
-    paymentMethod         String?       // card, bank_transfer, etc.
+    paymentMethod         String?       // card, bank_transfer, test_payment, etc.
+    isTestPayment         Boolean       @default(false) // True for test/demo payments
     receiptUrl            String?       // Stripe receipt URL
     refundReason          String?
     createdAt             DateTime      @default(now())

@@ -6,10 +6,27 @@ export default function Banner() {
 
     const [isOpen, setIsOpen] = React.useState(true);
 
-    const handleClaim = () => {
+    const handleClaim = async () => {
         setIsOpen(false);
-        toast.success('Coupon copied to clipboard!');
-        navigator.clipboard.writeText('NEW20');
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText('NEW20');
+                toast.success('Coupon copied to clipboard!');
+            } else {
+                // Fallback for browsers without clipboard API
+                const textArea = document.createElement('textarea');
+                textArea.value = 'NEW20';
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-9999px';
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                toast.success('Coupon copied to clipboard!');
+            }
+        } catch (err) {
+            toast.error('Failed to copy coupon. Code: NEW20');
+        }
     };
 
     return isOpen && (
