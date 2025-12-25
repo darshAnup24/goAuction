@@ -9,8 +9,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/auth';
+import { auth } from '@/auth';
 import {
   createProxyBid,
   cancelProxyBid,
@@ -118,7 +117,7 @@ export async function GET(req) {
     }
 
     // Check authentication
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user) {
       return NextResponse.json(
         { error: 'Authentication required' },
@@ -163,7 +162,7 @@ export async function DELETE(req) {
     }
 
     // Check authentication
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user) {
       return NextResponse.json(
         { error: 'Authentication required' },

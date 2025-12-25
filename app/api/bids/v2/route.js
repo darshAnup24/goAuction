@@ -10,9 +10,8 @@
  */
 
 import { NextResponse } from 'next/server';
-import { getServerSession } from 'next/auth';
-import { authOptions } from '@/auth';
-import { prisma } from '@/lib/prisma';
+import { auth } from '@/auth';
+import prisma from '@/lib/prisma';
 import { Prisma } from '@prisma/client';
 import { evaluateProxyBids } from '@/lib/features/autoBid_engine';
 
@@ -38,7 +37,7 @@ export async function POST(req) {
     }
 
     // Check authentication
-    const session = await getServerSession(authOptions);
+    const session = await auth();
     if (!session?.user) {
       return NextResponse.json(
         { error: 'Authentication required' },
