@@ -36,19 +36,27 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           throw new Error('Email and password are required')
         }
 
-        // Find user by email
+        // Find user by email (case-insensitive search)
         const user = await prisma.user.findUnique({
           where: {
-            email: credentials.email,
+            email: credentials.email.toLowerCase().trim(),
           },
         })
 
         if (!user) {
+          console.log(`❌ Login failed: No user found with email ${credentials.email}`)
           throw new Error('Invalid email or password')
+        }
+
+        // Check if user has a password (OAuth users won't have one)
+        if (!user.password) {
+          console.log(`❌ Login failed: User ${credentials.email} has no password (OAuth user)`)
+          throw new Error('This account uses social login. Please sign in with Google.')
         }
 
         // Check if email is verified (skip for OAuth users who have no password)
         if (!user.emailVerified && user.password) {
+          console.log(`⚠️ Login blocked: User ${credentials.email} email not verified`)
           throw new Error('Please verify your email before logging in')
         }
 
@@ -59,8 +67,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         )
 
         if (!isPasswordValid) {
+          console.log(`❌ Login failed: Invalid password for ${credentials.email}`)
           throw new Error('Invalid email or password')
         }
+
+        console.log(`✅ Login successful for user: ${credentials.email}`)
 
         // Return user object (without password)
         return {

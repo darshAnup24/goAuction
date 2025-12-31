@@ -7,7 +7,11 @@ import { sendVerificationEmail } from '@/lib/email'
 export async function POST(req) {
   try {
     const body = await req.json()
-    const { email, username, password, fullName, phone, address } = body
+    let { email, username, password, fullName, phone, address } = body
+
+    // Normalize email (lowercase and trim)
+    email = email?.toLowerCase().trim()
+    username = username?.trim()
 
     // Validate required fields
     if (!email || !username || !password || !fullName) {
@@ -68,7 +72,8 @@ export async function POST(req) {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10)
 
-    // Create user (without email verification for now)
+    // Create user (auto-verify for now to allow immediate login)
+    // TODO: Switch to null and implement proper email verification flow
     const user = await prisma.user.create({
       data: {
         email,
@@ -79,7 +84,7 @@ export async function POST(req) {
         address: address || null,
         role: 'BUYER',
         isVendor: false,
-        emailVerified: null, // Not verified yet
+        emailVerified: new Date(), // Auto-verify to allow immediate login
       },
       select: {
         id: true,
@@ -122,19 +127,28 @@ export async function POST(req) {
 
     return NextResponse.json(
       {
-        message: emailSent 
-          ? 'User registered successfully. Please check your email to verify your account.'
-          : 'User registered successfully. Email verification could not be sent - please try resending from the login page.',
+        message: 'User registered successfully! You can now log in with your credentials.',
         user,
-        requiresVerification: true,
+        requiresVerification: false, // Changed to false since we auto-verify
         emailSent,
+        note: emailSent 
+          ? 'A verification email was also sent to your inbox.'
+          : 'Email verification will be available once email service is configured.',
       },
       { status: 201 }
     )
   } catch (error) {
-    console.error('Registration error:', error)
+    console.error('❌ Registration error:', error)
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta,
+    })
     return NextResponse.json(
-      { error: 'Internal server error' },
+      { 
+        error: 'Internal server error',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
       { status: 500 }
     )
   }
